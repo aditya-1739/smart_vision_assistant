@@ -7,6 +7,7 @@ import ControlPanel from './components/ControlPanel';
 import TopBar from './components/TopBar';
 import ActivityTimeline from './components/ActivityTimeline';
 import MiniRadar from './components/MiniRadar';
+import { SegmentedControl } from './components/ui';
 
 const styles = {
   app: {
@@ -71,6 +72,7 @@ function App() {
   const [audioMessage, setAudioMessage] = useState(null);
   const [events, setEvents] = useState([]);
   const [voiceState, setVoiceState] = useState('muted'); // 'muted', 'listening', 'speaking'
+  const [uiMode, setUiMode] = useState('navigation'); // 'navigation', 'advanced'
   const [config, setConfig] = useState({
     confidence: 0.5,
     ttsEnabled: true
@@ -287,7 +289,21 @@ function App() {
         toggleAccessibility={toggleAccessibility}
       />
 
-      <div style={styles.dashboardLayout}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--spacing-md)' }}>
+        <SegmentedControl 
+          options={[
+            { label: 'Navigation Mode', value: 'navigation' },
+            { label: 'Advanced Mode', value: 'advanced' }
+          ]}
+          value={uiMode}
+          onChange={setUiMode}
+        />
+      </div>
+
+      <div style={{
+        ...styles.dashboardLayout,
+        gridTemplateColumns: uiMode === 'navigation' ? '65% 1fr' : '68% 1fr'
+      }}>
         {/* Left Column: 60% Width for Camera Focus */}
         <div style={styles.cameraSection}>
           <div style={{...styles.glassCard, flex: 1, padding: 0, overflow: 'hidden'}} role="region" aria-label="Live Camera Feed">
@@ -304,9 +320,9 @@ function App() {
           </div>
         </div>
 
-        {/* Right Column: 40% Width for Navigation and Controls */}
+        {/* Right Column */}
         <div style={styles.sidePanel}>
-          <div style={styles.glassCard} role="region" aria-label="Audio Navigation Guide">
+          <div style={{...styles.glassCard, ...(uiMode === 'navigation' ? { flex: 1 } : {})}} role="region" aria-label="Audio Navigation Guide">
             <AudioGuide 
               message={audioMessage}
               isEnabled={config.ttsEnabled}
@@ -316,31 +332,35 @@ function App() {
             />
           </div>
 
-          <div style={{...styles.glassCard, overflow: 'hidden'}} role="region" aria-label="Detected Objects History">
-            <ObjectList 
-              objects={detections}
-              isRunning={isRunning}
-            />
-          </div>
+          {uiMode === 'advanced' && (
+            <>
+              <div style={{...styles.glassCard, overflow: 'hidden'}} role="region" aria-label="Detected Objects History">
+                <ObjectList 
+                  objects={detections}
+                  isRunning={isRunning}
+                />
+              </div>
 
-          <div style={{...styles.glassCard, overflow: 'hidden', minHeight: '250px'}} role="region" aria-label="Spatial Radar">
-            <MiniRadar detections={detections} />
-          </div>
+              <div style={{...styles.glassCard, overflow: 'hidden', minHeight: '250px'}} role="region" aria-label="Spatial Radar">
+                <MiniRadar detections={detections} />
+              </div>
 
-          <div style={{...styles.glassCard, overflow: 'hidden'}} role="region" aria-label="Activity Timeline">
-            <ActivityTimeline events={events} />
-          </div>
+              <div style={{...styles.glassCard, overflow: 'hidden'}} role="region" aria-label="Activity Timeline">
+                <ActivityTimeline events={events} />
+              </div>
 
-          <div style={styles.glassCard} role="region" aria-label="System Controls">
-            <ControlPanel
-              config={config}
-              isRunning={isRunning}
-              onStart={startDetection}
-              onStop={stopDetection}
-              onToggleTTS={toggleTTS}
-              onConfidenceChange={updateConfidence}
-            />
-          </div>
+              <div style={styles.glassCard} role="region" aria-label="System Controls">
+                <ControlPanel
+                  config={config}
+                  isRunning={isRunning}
+                  onStart={startDetection}
+                  onStop={stopDetection}
+                  onToggleTTS={toggleTTS}
+                  onConfidenceChange={updateConfidence}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

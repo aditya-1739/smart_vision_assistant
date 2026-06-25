@@ -4,3 +4,4 @@ export { MetricCard } from './MetricCard';
 export { InfoCard } from './InfoCard';
 export { PrimaryButton, SecondaryButton, IconButton } from './Button';
 export { SectionTitle } from './SectionTitle';
+export { SegmentedControl } from './SegmentedControl';
