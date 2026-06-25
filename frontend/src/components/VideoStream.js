@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWebRTC } from '../hooks/useWebRTC';
 import UnifiedOverlay from './UnifiedOverlay';
+import { PrimaryButton, StatusBadge } from './ui';
 
 const styles = {
   container: {
     position: 'relative',
     width: '100%',
     height: '100%',
-    borderRadius: '20px',
+    borderRadius: 'var(--border-radius-xl)',
     overflow: 'hidden',
     background: '#000',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: 'inset 0 0 50px rgba(0,0,0,0.8)',
+    border: '1px solid var(--border-color)',
   },
   videoWrapper: {
     flex: 1,
@@ -20,6 +21,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    background: 'radial-gradient(circle at center, #111 0%, #000 100%)',
   },
   video: {
     width: '100%',
@@ -33,107 +35,78 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f23 100%)',
-    padding: '20px',
+    background: 'var(--bg-main)',
+    padding: 'var(--spacing-xl)',
     textAlign: 'center',
+    gap: 'var(--spacing-md)',
+  },
+  processingOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: 'rgba(0, 0, 0, 0.7)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 'var(--spacing-sm)',
+    color: 'var(--text-primary)',
+    zIndex: 20,
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '3px solid var(--border-color)',
+    borderTopColor: 'var(--status-info)',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
   },
   overlayTop: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    padding: '20px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    background: 'linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%)',
+    top: 'var(--spacing-md)',
+    left: 'var(--spacing-md)',
     zIndex: 10,
-    pointerEvents: 'none',
   },
   overlayBottom: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: '20px',
-    display: 'flex',
-    justifyContent: 'flex-end',
-    background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)',
+    bottom: 'var(--spacing-md)',
+    right: 'var(--spacing-md)',
     zIndex: 10,
-  },
-  badge: {
-    background: 'rgba(0,0,0,0.6)',
-    backdropFilter: 'blur(4px)',
-    padding: '8px 16px',
-    borderRadius: '20px',
-    fontSize: '0.85rem',
-    fontWeight: '600',
-    border: '1px solid var(--glass-border)',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    pointerEvents: 'auto',
-  },
-  liveBadge: {
-    color: 'var(--accent-primary)',
-    borderColor: 'var(--accent-primary)',
-  },
-  metricsGroup: {
-    display: 'flex',
-    gap: '10px',
-    pointerEvents: 'auto',
-  },
-  metric: {
-    color: '#fff',
   },
   fullscreenBtn: {
     background: 'rgba(0,0,0,0.6)',
     backdropFilter: 'blur(4px)',
-    border: '1px solid var(--glass-border)',
+    border: '1px solid var(--border-color)',
     color: '#fff',
-    width: '40px',
-    height: '40px',
-    borderRadius: '8px',
+    width: '36px',
+    height: '36px',
+    borderRadius: 'var(--border-radius-md)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    transition: 'all 0.2s',
-    pointerEvents: 'auto',
+    transition: 'var(--transition-fast)',
   },
 };
 
-function VideoStream({ isRunning, onStart, isCloudMode, socket, detections }) {
+function VideoStream({ isRunning, onStart, isCloudMode, socket, detections, isProcessing = false }) {
   const { videoRef, canvasRef } = useWebRTC(socket, isRunning && isCloudMode);
-  const [fps, setFps] = useState(0);
-  const [latency, setLatency] = useState(0);
   const containerRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Mock metrics for UI demonstration of real-time monitoring
+  // Add the keyframe for spinning if not already in index.css
   useEffect(() => {
-    let frameCount = 0;
-    let lastTime = Date.now();
-    let metricsInterval;
-    
-    if (isRunning) {
-      metricsInterval = setInterval(() => {
-        const now = Date.now();
-        const elapsed = (now - lastTime) / 1000;
-        if (elapsed > 0) {
-          // Simulate slight FPS variation around 30
-          setFps(Math.round(28 + Math.random() * 4));
-          // Simulate latency around 45ms
-          setLatency(Math.round(40 + Math.random() * 15));
+    if (!document.getElementById('spinner-style')) {
+      const style = document.createElement('style');
+      style.id = 'spinner-style';
+      style.innerHTML = `
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
-        lastTime = now;
-      }, 1000);
-    } else {
-      setFps(0);
-      setLatency(0);
+      `;
+      document.head.appendChild(style);
     }
-
-    return () => clearInterval(metricsInterval);
-  }, [isRunning]);
+  }, []);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -154,10 +127,17 @@ function VideoStream({ isRunning, onStart, isCloudMode, socket, detections }) {
   }, []);
 
   return (
-    <div ref={containerRef} style={{...styles.container, borderRadius: isFullscreen ? '0' : '20px'}}>
+    <div ref={containerRef} style={{...styles.container, borderRadius: isFullscreen ? '0' : 'var(--border-radius-xl)'}}>
       {isRunning ? (
         <div style={styles.videoWrapper}>
           
+          {isProcessing && (
+            <div style={styles.processingOverlay}>
+              <div style={styles.spinner} />
+              <div style={{ fontWeight: '600', letterSpacing: '1px' }}>🧠 AI PROCESSING...</div>
+            </div>
+          )}
+
           {isCloudMode ? (
             <>
               <video 
@@ -174,30 +154,27 @@ function VideoStream({ isRunning, onStart, isCloudMode, socket, detections }) {
               />
             </>
           ) : (
-            <img 
-              src="http://localhost:5000/video_feed"
-              alt="Live camera feed with object detection overlay"
-              style={styles.video}
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
+            <>
+              <img 
+                src="http://localhost:5000/video_feed"
+                alt="Live camera feed with object detection overlay"
+                style={styles.video}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+              {/* Note: In local mode, UnifiedOverlay doesn't render from video feed directly in this app's architecture, 
+                  but we'll keep the design clean. */}
+            </>
           )}
 
-          
           <div style={styles.overlayTop}>
-            <div style={{...styles.badge, ...styles.liveBadge}} role="status">
-              <span style={{ animation: 'pulse 2s infinite' }}>🔴</span> LIVE
-            </div>
-            
-            <div style={styles.metricsGroup}>
-              <div style={{...styles.badge, ...styles.metric}}>
-                ⏱️ {latency}ms
-              </div>
-              <div style={{...styles.badge, ...styles.metric}}>
-                🎞️ {fps} FPS
-              </div>
-            </div>
+            <StatusBadge 
+              status="danger" 
+              label="LIVE" 
+              pulse={true}
+              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+            />
           </div>
 
           <div style={styles.overlayBottom}>
@@ -205,6 +182,8 @@ function VideoStream({ isRunning, onStart, isCloudMode, socket, detections }) {
               style={styles.fullscreenBtn}
               onClick={toggleFullscreen}
               aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.8)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.6)'}
             >
               {isFullscreen ? '↙️' : '↗️'}
             </button>
@@ -212,20 +191,18 @@ function VideoStream({ isRunning, onStart, isCloudMode, socket, detections }) {
         </div>
       ) : (
         <div style={styles.placeholder}>
-          <div style={{ fontSize: '4rem', marginBottom: '20px', opacity: 0.8 }}>📷</div>
-          <h3 style={{ marginBottom: '15px', fontSize: '1.5rem' }}>
-            Camera Offline
-          </h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '30px', maxWidth: '300px' }}>
-            The AI vision system is currently on standby. Start navigation to begin object detection and guidance.
-          </p>
-          <button
-            onClick={onStart}
-            className="btn btn-primary"
-            aria-label="Start detection"
-          >
-            ▶ Start Camera Feed
-          </button>
+          <div style={{ fontSize: '4rem', opacity: 0.8 }}>📷</div>
+          <div>
+            <h3 style={{ fontSize: 'var(--font-size-xl)', marginBottom: 'var(--spacing-xs)', color: 'var(--text-primary)' }}>
+              Camera Offline
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', maxWidth: '350px', margin: '0 auto', lineHeight: '1.5' }}>
+              The AI vision system is currently on standby. Connect the camera to begin real-time navigation assistance.
+            </p>
+          </div>
+          <PrimaryButton onClick={onStart} style={{ marginTop: 'var(--spacing-md)' }}>
+            <span style={{ fontSize: '1.2rem' }}>▶</span> Start Camera Feed
+          </PrimaryButton>
         </div>
       )}
     </div>
