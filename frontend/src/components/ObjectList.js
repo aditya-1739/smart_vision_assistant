@@ -84,7 +84,8 @@ function ObjectList({ objects, isRunning }) {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  transition: 'var(--transition-normal)'
+                  transition: 'var(--transition-normal)',
+                  animation: 'fade-in 0.3s ease-out forwards',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>

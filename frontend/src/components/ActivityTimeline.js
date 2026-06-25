@@ -29,7 +29,8 @@ export const ActivityTimeline = ({ events }) => {
               padding: 'var(--spacing-sm) var(--spacing-md)',
               background: 'var(--bg-surface)',
               borderRadius: 'var(--border-radius-md)',
-              borderLeft: `3px solid var(--status-${event.type || 'info'})`
+              borderLeft: `3px solid var(--status-${event.type || 'info'})`,
+              animation: 'fade-in 0.3s ease-out forwards',
             }}>
               <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)', minWidth: '60px' }}>
                 {event.time}
