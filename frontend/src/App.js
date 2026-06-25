@@ -20,14 +20,6 @@ const styles = {
     overflow: 'hidden',
     gap: 'var(--spacing-md)',
   },
-  dashboardLayout: {
-    display: 'grid',
-    gridTemplateColumns: '68% 1fr', /* 68% for Hero, 32% for Navigation/Data */
-    gap: 'var(--spacing-lg)',
-    flex: 1,
-    minHeight: 0,
-    height: '100%',
-  },
   cameraSection: {
     display: 'flex',
     flexDirection: 'column',
@@ -300,10 +292,7 @@ function App() {
         />
       </div>
 
-      <div style={{
-        ...styles.dashboardLayout,
-        gridTemplateColumns: uiMode === 'navigation' ? '65% 1fr' : '68% 1fr'
-      }}>
+      <div className={`dashboard-layout ${uiMode}-mode`}>
         {/* Left Column: 60% Width for Camera Focus */}
         <div style={styles.cameraSection}>
           <div style={{...styles.glassCard, flex: 1, padding: 0, overflow: 'hidden'}} role="region" aria-label="Live Camera Feed">

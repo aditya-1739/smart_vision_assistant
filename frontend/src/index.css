@@ -138,3 +138,45 @@ body {
 body.accessibility-mode {
   font-size: 120%;
 }
+
+/* Dashboard Layout & Responsiveness */
+.dashboard-layout {
+  display: grid;
+  gap: var(--spacing-lg);
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.dashboard-layout.navigation-mode {
+  grid-template-columns: 65% 1fr;
+}
+
+.dashboard-layout.advanced-mode {
+  grid-template-columns: 68% 1fr;
+}
+
+/* Tablet Layout */
+@media (max-width: 1024px) {
+  .dashboard-layout.navigation-mode,
+  .dashboard-layout.advanced-mode {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Mobile Layout */
+@media (max-width: 768px) {
+  .dashboard-layout.navigation-mode,
+  .dashboard-layout.advanced-mode {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+  
+  /* Make side panel unconstrained on mobile */
+  .dashboard-layout > div:nth-child(2) {
+    height: auto;
+    overflow: visible;
+  }
+}
+
