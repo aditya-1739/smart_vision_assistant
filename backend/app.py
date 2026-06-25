@@ -664,14 +664,21 @@ def handle_set_confidence(data):
     logger.info(f'[Settings] Confidence threshold updated to {MIN_CONFIDENCE}')
 
 
+is_processing_frame = False
+
 @socketio.on('v1/process_frame')
 def handle_process_frame(data):
+    global is_processing_frame
+    if is_processing_frame:
+        return # Drop frame to prevent CPU starvation and queue buildup
+        
     sid = request.sid
     if sid not in active_clients:
         return
     
     session = active_clients[sid]
     
+    is_processing_frame = True
     try:
         # Decode binary JPEG data
         np_arr = np.frombuffer(data, np.uint8)
@@ -693,7 +700,9 @@ def handle_process_frame(data):
         emit('v1/detections_update', json_response)
         
     except Exception as e:
-        pass
+        logger.error(f"Error processing frame: {e}")
+    finally:
+        is_processing_frame = False
 
 if __name__ == '__main__':
     logger.info(f"🌐 Smart Navigation Web Server ({settings.ENV.upper()})")

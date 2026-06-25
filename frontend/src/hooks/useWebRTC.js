@@ -58,8 +58,8 @@ export const useWebRTC = (socket, isActive) => {
             }, 'image/jpeg', 0.6); // Compress to binary JPEG
         };
         
-        // Target 15 FPS for Cloud Mode
-        intervalId = setInterval(sendFrame, 1000 / 15);
+        // Target 2 FPS for Cloud Mode to prevent starving the free Render CPU
+        intervalId = setInterval(sendFrame, 1000 / 2);
         
         return () => clearInterval(intervalId);
     }, [isActive, stream, socket]);
