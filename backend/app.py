@@ -12,6 +12,7 @@ import numpy as np
 from utils.logger import get_logger
 from config.settings import settings
 from ai.pipeline import AIPipeline
+from sessions.client_session import ClientSession
 
 logger = get_logger('app')
 
@@ -595,7 +596,7 @@ def video_feed():
 
 
 @socketio.on('connect')
-def handle_connect():
+def handle_connect(auth=None):
     sid = request.sid
     logger.info(f'[Web] Client connected: {sid}')
     active_clients[sid] = ClientSession(sid)

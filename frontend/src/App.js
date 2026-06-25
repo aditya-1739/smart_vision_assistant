@@ -122,6 +122,20 @@ function App() {
     });
 
     // Listen to detections_update to match backend
+    
+    newSocket.on('v1/detections_update', (data) => {
+      setDetections(data.objects || []);
+      
+      // Handle TTS from V1 protocol
+      if (data.tracking && data.tracking.announcements) {
+        data.tracking.announcements.forEach(a => {
+          if (configRef.current.ttsEnabled && a.text) {
+            speakInBrowser(a.text, a.priority);
+          }
+        });
+      }
+    });
+
     newSocket.on('detections_update', (data) => {
       setDetections(data.objects || []);
     });
