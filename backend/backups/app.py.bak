@@ -1,0 +1,522 @@
+"""
+Smart Navigation Web Backend
+Based on working run_live_demo.py with web integration added
+"""
+
+from flask import Flask, Response, jsonify, request
+from flask_cors import CORS
+from flask_socketio import SocketIO, emit
+import cv2
+import time
+import os
+import threading
+import subprocess
+import platform
+import sys
+from collections import deque
+from datetime import datetime
+import numpy as np
+
+app = Flask(__name__)
+CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# ==================== YOUR EXACT WORKING CODE STARTS HERE ====================
+
+# Import your detection (adjust path if needed)
+try:
+    from src.detection.model_loader import load_model, warmup, predict_image, get_spatial_cues
+    DETECTION_AVAILABLE = True
+except ImportError:
+    # Try alternative import paths
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+    try:
+        from src.detection.model_loader import load_model, warmup, predict_image, get_spatial_cues
+        DETECTION_AVAILABLE = True
+    except ImportError:
+        print("[ERROR] Cannot find detection modules. Make sure src/ folder exists!")
+        DETECTION_AVAILABLE = False
+
+# ==================== CONFIGURATION (from your run_live_demo.py) ====================
+MIN_CONFIDENCE = 0.50
+UPDATE_COOLDOWN = 2.5
+PATH_CLEAR_INTERVAL = 6.0
+
+PRIORITY = {
+    "person": 10, "car": 9, "bicycle": 8, "motorcycle": 8,
+    "dog": 7, "cat": 6, "chair": 5, "bench": 4, "bottle": 3, 
+    "cell phone": 3, "remote": 3, "backpack": 3
+}
+
+# ==================== YOUR EXACT TTS CODE ====================
+class RobustTTS:
+    def __init__(self):
+        self.system = platform.system()
+        self.speaking = False
+        self.last_speech_time = 0
+        self.cooldown = 0.5
+        self.last_message = ""
+        self.queue = deque()
+        self.lock = threading.Lock()
+        self.is_running = True
+        
+        # Try pyttsx3
+        self.pyttsx3_engine = None
+        try:
+            import pyttsx3
+            self.pyttsx3_engine = pyttsx3.init()
+            self.pyttsx3_engine.setProperty('rate', 180)
+            self.pyttsx3_engine.setProperty('volume', 0.9)
+        except:
+            pass
+        
+        # Start worker
+        self.worker = threading.Thread(target=self._speaker_worker, daemon=True)
+        self.worker.start()
+    
+    def _speaker_worker(self):
+        while self.is_running:
+            if self.queue:
+                text, priority = self.queue.popleft()
+                current_time = time.time()
+                
+                if not priority and (current_time - self.last_speech_time) < self.cooldown:
+                    continue
+                
+                if text == self.last_message and (current_time - self.last_speech_time) < 5.0:
+                    continue
+                
+                self._speak_blocking(text)
+                self.last_speech_time = time.time()
+                self.last_message = text
+            else:
+                time.sleep(0.05)
+    
+    def _speak_blocking(self, text):
+        print(f"🔊 SPEAKING: {text}")
+        
+        # Windows SAPI
+        if self.system == "Windows":
+            try:
+                import win32com.client
+                speaker = win32com.client.Dispatch("SAPI.SpVoice")
+                speaker.Speak(text)
+                return
+            except:
+                pass
+            
+            # PowerShell fallback
+            try:
+                safe_text = text.replace('"', '`"').replace("'", "`'")
+                ps_cmd = f'Add-Type -AssemblyName System.Speech; $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; $synth.Speak("{safe_text}");'
+                subprocess.run(["powershell", "-Command", ps_cmd], timeout=10, capture_output=True)
+                return
+            except:
+                pass
+        
+        # macOS
+        if self.system == "Darwin":
+            try:
+                subprocess.run(["say", text], timeout=10)
+                return
+            except:
+                pass
+        
+        # Linux
+        if self.system == "Linux":
+            try:
+                subprocess.run(["espeak", text], timeout=10)
+                return
+            except:
+                pass
+        
+        # pyttsx3 fallback
+        if self.pyttsx3_engine:
+            try:
+                self.pyttsx3_engine.say(text)
+                self.pyttsx3_engine.runAndWait()
+            except Exception as e:
+                print(f"❌ TTS failed: {e}")
+    
+    def speak(self, text, priority=False):
+        with self.lock:
+            if len(self.queue) > 3:
+                self.queue.clear()
+            self.queue.append((text, priority))
+    
+    def stop(self):
+        self.is_running = False
+        with self.lock:
+            self.queue.clear()
+
+# Global TTS
+tts = RobustTTS()
+
+# Tracking state (your exact variables)
+tracked_objects = {}
+object_counter = 0
+last_path_clear_announcement = 0
+
+def speak(text, priority=False):
+    global last_path_clear_announcement
+    if "clear" in text.lower():
+        last_path_clear_announcement = time.time()
+    tts.speak(text, priority)
+
+def get_object_signature(label, position):
+    return f"{label}_{position}"
+
+def update_tracked_objects(current_preds, frame_shape):
+    """YOUR EXACT FUNCTION from run_live_demo.py"""
+    global object_counter, tracked_objects
+    
+    width = frame_shape[1]
+    height = frame_shape[0]
+    current_time = time.time()
+    announcements = []
+    active_signatures = set()
+    
+    for p in current_preds:
+        label = p["label"]
+        x_center = p["center"][0]
+        bbox = p["bbox"]
+        
+        # Position calculation (your exact code)
+        if x_center < width * 0.32:
+            position = "left"
+        elif x_center > width * 0.68:
+            position = "right"
+        else:
+            position = "ahead"
+        
+        # Distance calculation (your exact code)
+        obj_height = bbox[3] - bbox[1]
+        distance_ratio = obj_height / height
+        
+        if distance_ratio > 0.50:
+            distance = "very close"
+        elif distance_ratio > 0.28:
+            distance = "near"
+        elif distance_ratio > 0.12:
+            distance = "moderate distance"
+        else:
+            distance = "far"
+        
+        signature = get_object_signature(label, position)
+        active_signatures.add(signature)
+        
+        # Update existing
+        if signature in tracked_objects:
+            tracked_objects[signature]["last_seen"] = current_time
+        
+        # NEW OBJECT (your exact logic)
+        if signature not in tracked_objects:
+            object_counter += 1
+            tracked_objects[signature] = {
+                "id": object_counter,
+                "label": label,
+                "position": position,
+                "distance": distance,
+                "first_seen": current_time,
+                "last_seen": current_time,
+                "last_announced": 0,
+                "times_announced": 0,
+                "prev_distance": distance
+            }
+            
+            priority = label in ["person", "car", "bicycle", "motorcycle"]
+            
+            if position == "ahead":
+                text = f"{label} {distance} ahead"
+            else:
+                text = f"{label} on your {position}, {distance}"
+            
+            if distance == "very close" and position == "ahead":
+                text = f"Watch out! {text}. Stop."
+                priority = True
+            
+            announcements.append((text, priority, label))
+            tracked_objects[signature]["last_announced"] = current_time
+            tracked_objects[signature]["times_announced"] += 1
+            
+        else:
+            # Update existing (your exact code)
+            obj = tracked_objects[signature]
+            time_since_announce = current_time - obj["last_announced"]
+            
+            if obj["prev_distance"] != distance and time_since_announce > UPDATE_COOLDOWN:
+                if position == "ahead":
+                    text = f"{label} now {distance}"
+                else:
+                    text = f"{label} on your {position}, now {distance}"
+                
+                if distance == "very close" and obj["prev_distance"] != "very close":
+                    if position == "left":
+                        text += ". Move right"
+                    elif position == "right":
+                        text += ". Move left"
+                    else:
+                        text += ". Stop"
+                    priority = True
+                else:
+                    priority = False
+                
+                announcements.append((text, priority, label))
+                obj["last_announced"] = current_time
+                obj["prev_distance"] = distance
+    
+    # Cleanup (your exact code)
+    to_remove = []
+    for sig, obj in tracked_objects.items():
+        if sig not in active_signatures:
+            if current_time - obj["last_seen"] > 2.0:
+                if obj["distance"] in ["very close", "near"] and obj["times_announced"] > 0:
+                    announcements.append((f"{obj['label']} moved away", False, obj['label']))
+                to_remove.append(sig)
+    
+    for sig in to_remove:
+        del tracked_objects[sig]
+    
+    return announcements
+
+def generate_navigation_summary(preds, frame_shape):
+    """YOUR EXACT FUNCTION"""
+    if not preds:
+        return None
+    
+    width = frame_shape[1]
+    left_count = sum(1 for p in preds if p["center"][0] < width * 0.35)
+    right_count = sum(1 for p in preds if p["center"][0] > width * 0.65)
+    ahead_count = len(preds) - left_count - right_count
+    
+    if ahead_count == 0:
+        return "Path ahead is clear"
+    elif left_count == 0 and right_count > 0:
+        return "Path clear on your left"
+    elif right_count == 0 and left_count > 0:
+        return "Path clear on your right"
+    elif ahead_count > 2:
+        return f"{ahead_count} objects ahead, proceed carefully"
+    return None
+
+# ==================== WEB INTEGRATION ====================
+
+# Global state for web
+camera = None
+is_running = False
+model = None
+frame_count = 0
+fps = 0
+last_fps_time = time.time()
+last_terminal_print = 0
+
+# Web-specific class filter (your exact list)
+CLASS_FILTER = ["person", "car", "bicycle", "motorcycle", "chair", 
+                "bench", "bottle", "cell phone", "remote", "dog", 
+                "cat", "bus", "truck", "umbrella", "backpack", 
+                "teddy bear", "book", "clock"]
+
+def init_camera():
+    """Initialize camera"""
+    global camera
+    camera = cv2.VideoCapture(0)
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    return camera.isOpened()
+
+def generate_frames_web():
+    """Video generator with web socket updates"""
+    global is_running, frame_count, fps, last_fps_time, last_terminal_print
+    global tracked_objects, object_counter, last_path_clear_announcement
+    
+    # Reset state
+    tracked_objects = {}
+    object_counter = 0
+    last_path_clear_announcement = 0
+    
+    # Load model (your exact code)
+    print("🚀 Loading YOLOv8 model...")
+    model = load_model(None, device=None, half=False, verbose=True)
+    warmup(model, imgsz=640, steps=2)
+    print("✅ Model ready!")
+    
+    # Welcome speech
+    speak("Navigation assistant ready", priority=True)
+    time.sleep(2)
+    
+    print("🎯 Web streaming started")
+    
+    while is_running:
+        ret, frame = camera.read()
+        if not ret:
+            continue
+        
+        frame_count += 1
+        current_time = time.time()
+        
+        # FPS (your exact code)
+        if frame_count % 30 == 0:
+            elapsed = current_time - last_fps_time
+            fps = 30 / elapsed if elapsed > 0 else 0
+            last_fps_time = current_time
+        
+        # Detection (your exact code)
+        preds, annotated = predict_image(
+            model, frame, conf=MIN_CONFIDENCE, iou=0.45, imgsz=640,
+            annotate=True, class_name_filter=CLASS_FILTER
+        )
+        
+        if annotated is None:
+            annotated = frame.copy()
+        
+        # Get announcements (your exact function)
+        announcements = update_tracked_objects(preds, frame.shape)
+        
+        # Speak (your exact code)
+        announcements.sort(key=lambda x: PRIORITY.get(x[2], 0), reverse=True)
+        for text, priority, label in announcements[:2]:
+            speak(text, priority=priority)
+        
+        # Path clear (your exact code)
+        if not preds:
+            if current_time - last_path_clear_announcement > PATH_CLEAR_INTERVAL:
+                speak("Path clear ahead", priority=False)
+        else:
+            last_path_clear_announcement = current_time
+        
+        # Summary (your exact code)
+        if frame_count % 90 == 0 and len(preds) > 0:
+            summary = generate_navigation_summary(preds, frame.shape)
+            if summary:
+                speak(summary, priority=False)
+        
+        # Draw overlays (your exact code)
+        status_text = f"Objects: {len(preds)} | Tracked: {len(tracked_objects)}"
+        cv2.putText(annotated, status_text, (10, 30),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        cv2.putText(annotated, f"FPS: {fps:.1f}", (10, 60),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+        
+        y_offset = 90
+        for sig, obj in list(tracked_objects.items())[:5]:
+            info = f"{obj['label']}: {obj['position']} ({obj['distance']})"
+            cv2.putText(annotated, info, (10, y_offset),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+            y_offset += 25
+        
+        # Send to web socket
+        socketio.emit('detections_update', {
+            'objects': [
+                {
+                    'id': obj.get('id', 0),
+                    'label': obj['label'],
+                    'position': obj['position'],
+                    'distance': obj['distance'],
+                    'confidence': 0.0  # Added for web compatibility
+                }
+                for sig, obj in tracked_objects.items()
+            ],
+            'announcements': [{'text': a[0], 'priority': a[1]} for a in announcements],
+            'fps': fps,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        # Encode for streaming
+        ret, buffer = cv2.imencode('.jpg', annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        if ret:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        
+        time.sleep(0.033)
+
+# ==================== FLASK ROUTES ====================
+
+@app.route('/')
+def index():
+    return jsonify({
+        'status': 'Smart Navigation Web API',
+        'based_on': 'run_live_demo.py',
+        'endpoints': {
+            'video': '/video_feed',
+            'start': '/api/start',
+            'stop': '/api/stop'
+        }
+    })
+
+@app.route('/api/start', methods=['POST'])
+def start():
+    global is_running
+    
+    if not DETECTION_AVAILABLE:
+        return jsonify({'error': 'Detection modules not found. Check src/ folder.'}), 500
+    
+    if is_running:
+        return jsonify({'status': 'already_running'})
+    
+    if not init_camera():
+        return jsonify({'error': 'Cannot open camera'}), 500
+    
+    is_running = True
+    
+    # Start streaming thread
+    def stream_task():
+        for _ in generate_frames_web():
+            pass
+    
+    thread = threading.Thread(target=stream_task, daemon=True)
+    thread.start()
+    
+    return jsonify({'status': 'started', 'detection_available': DETECTION_AVAILABLE})
+
+@app.route('/api/stop', methods=['POST'])
+def stop():
+    global is_running, camera
+    
+    is_running = False
+    tts.stop()
+    
+    if camera:
+        camera.release()
+        camera = None
+    
+    return jsonify({'status': 'stopped'})
+
+@app.route('/video_feed')
+def video_feed():
+    def generate():
+        if not is_running:
+            # Test pattern
+            while True:
+                frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(frame, "Camera Offline - Click Start", 
+                          (150, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                ret, buffer = cv2.imencode('.jpg', frame)
+                if ret:
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+                time.sleep(0.5)
+            return
+        
+        for frame_bytes in generate_frames_web():
+            yield frame_bytes
+    
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+# ==================== WEBSOCKET ====================
+
+@socketio.on('connect')
+def handle_connect():
+    print(f'[Web] Client connected: {request.sid}')
+    emit('connected', {'status': 'connected'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f'[Web] Client disconnected: {request.sid}')
+
+if __name__ == '__main__':
+    print("🌐 Smart Navigation Web Server")
+    print("📍 Based on your working run_live_demo.py")
+    print("📍 API: http://localhost:5000")
+    print("📹 Video: http://localhost:5000/video_feed")
+    
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False)
