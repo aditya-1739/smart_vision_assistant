@@ -695,8 +695,9 @@ def handle_process_frame(data):
 if __name__ == '__main__':
     logger.info(f"🌐 Smart Navigation Web Server ({settings.ENV.upper()})")
     
+    port = int(os.environ.get('PORT', 5000))
     if settings.ENV == 'development':
-        socketio.run(app, host='0.0.0.0', port=5000, debug=settings.DEBUG, use_reloader=False, allow_unsafe_werkzeug=True)
+        socketio.run(app, host='0.0.0.0', port=port, debug=settings.DEBUG, use_reloader=False, allow_unsafe_werkzeug=True)
     else:
-        logger.info(f"Running production server using {settings.ASYNC_MODE}...")
-        socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+        logger.info(f"Running production server using {settings.ASYNC_MODE} on port {port}...")
+        socketio.run(app, host='0.0.0.0', port=port, debug=False)
