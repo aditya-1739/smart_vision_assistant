@@ -6,8 +6,13 @@ class BaseSettings:
     Base configuration loaded from environment variables.
     """
     # Application Mode
-    CAMERA_MODE = os.environ.get('CAMERA_MODE', 'local').lower() # 'local' or 'browser'
-    TTS_MODE = os.environ.get('TTS_MODE', 'local').lower() # 'local' or 'browser'
+    # If running on Render, force 'browser' mode since Render has no webcam
+    if os.environ.get('RENDER'):
+        CAMERA_MODE = 'browser'
+        TTS_MODE = 'browser'
+    else:
+        CAMERA_MODE = os.environ.get('CAMERA_MODE', 'local').lower() # 'local' or 'browser'
+        TTS_MODE = os.environ.get('TTS_MODE', 'local').lower() # 'local' or 'browser'
     
     # AI Pipeline Configuration
     USE_GPU = os.environ.get('USE_GPU', 'true').lower() == 'true'

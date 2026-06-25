@@ -586,6 +586,11 @@ def start():
     if not DETECTION_AVAILABLE:
         return jsonify({'error': 'Detection modules not found. Check src/ folder.'}), 500
     
+    # If the frontend is sending camera frames via websocket, 
+    # we DO NOT want to start the local backend camera/inference threads!
+    if settings.CAMERA_MODE == 'browser':
+        return jsonify({'status': 'started', 'detection_available': DETECTION_AVAILABLE})
+    
     if pipeline.is_running:
         return jsonify({'status': 'already_running'})
     
