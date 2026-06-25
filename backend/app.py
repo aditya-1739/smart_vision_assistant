@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 import cv2
 import time
 import os
