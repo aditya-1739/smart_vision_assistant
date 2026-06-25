@@ -2,18 +2,25 @@ import React from 'react';
 
 export const SegmentedControl = ({ options, value, onChange }) => {
   return (
-    <div style={{
-      display: 'inline-flex',
-      background: 'var(--bg-surface-hover)',
-      padding: '4px',
-      borderRadius: 'var(--border-radius-lg)',
-      border: '1px solid var(--border-color)',
-    }}>
+    <div 
+      role="tablist"
+      aria-label="Mode Selection"
+      style={{
+        display: 'inline-flex',
+        background: 'var(--bg-surface-hover)',
+        padding: '4px',
+        borderRadius: 'var(--border-radius-lg)',
+        border: '1px solid var(--border-color)',
+      }}
+    >
       {options.map((opt) => {
         const isActive = value === opt.value;
         return (
           <button
             key={opt.value}
+            role="tab"
+            aria-selected={isActive}
+            tabIndex={isActive ? 0 : -1}
             onClick={() => onChange(opt.value)}
             style={{
               padding: '6px 16px',

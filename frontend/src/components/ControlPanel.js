@@ -4,6 +4,16 @@ import { SectionTitle, PrimaryButton } from './ui';
 const ToggleSwitch = ({ checked, onChange, label, icon }) => (
   <div 
     onClick={onChange}
+    role="switch"
+    aria-checked={checked}
+    aria-label={label}
+    tabIndex={0}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onChange();
+      }
+    }}
     style={{
       display: 'flex',
       alignItems: 'center',
