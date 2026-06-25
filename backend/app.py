@@ -40,8 +40,11 @@ try:
 except Exception as e:
     logger.error(f"Failed to load model: {e}")
 
-
-app = Flask(__name__, static_folder='../frontend/build', static_url_path='/')
+if settings.ENV == 'development':
+    app = Flask(__name__)
+else:
+    # In cloud mode, backend is just an API, so no static folder needed
+    app = Flask(__name__)
 CORS(app, origins=settings.CORS_ORIGINS)
 socketio = SocketIO(app, cors_allowed_origins=settings.CORS_ORIGINS, async_mode=settings.ASYNC_MODE)
 
@@ -54,14 +57,6 @@ def add_security_headers(response):
     if settings.ENV == 'production':
         response.set_cookie('session_id', 'secure_val', secure=True, httponly=True, samesite='None')
     return response
-
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve(path):
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        return app.send_static_file(path)
-    else:
-        return app.send_static_file('index.html')
 
 @app.route('/api/v1/health', methods=['GET'])
 def health_check():
