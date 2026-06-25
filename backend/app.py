@@ -20,6 +20,8 @@ from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 
+active_clients = {}
+
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
@@ -576,17 +578,21 @@ def video_feed():
             
     return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+
 @socketio.on('connect')
 def handle_connect():
-    logger.info(f'[Web] Client connected: {request.sid}')
-    # tts.enabled = False (Removed to restore server-side audio)
+    sid = request.sid
+    logger.info(f'[Web] Client connected: {sid}')
+    active_clients[sid] = ClientSession(sid)
     emit('connected', {'status': 'connected'})
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    logger.info(f'[Web] Client disconnected: {request.sid}')
+    sid = request.sid
+    logger.info(f'[Web] Client disconnected: {sid}')
+    if sid in active_clients:
+        del active_clients[sid]
     tts.enabled = True
-
 @socketio.on('toggle_tts')
 def handle_toggle_tts(data):
     enabled = data.get('enabled', True)
