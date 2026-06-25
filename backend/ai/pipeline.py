@@ -41,10 +41,21 @@ class AIPipeline:
         # Construct protocol version 1.0 baseline
         objects = []
         for p in preds:
+            bbox = [int(x) for x in p["bbox"]]
+            x_center = p["center"][0]
+            width = frame.shape[1]
+            height = frame.shape[0]
+            
+            obj_height = bbox[3] - bbox[1]
+            distance_ratio = obj_height / height
+            approx_distance_meters = max(0.5, 1.5 / (distance_ratio + 0.1))
+            
             objects.append({
                 "label": p["label"],
                 "confidence": float(p["conf"]),
-                "bbox": [int(x) for x in p["bbox"]]
+                "bbox": bbox,
+                "horizontal_pos": 1.0 - (x_center / width), # Inverted mapping
+                "distance_meters": approx_distance_meters
             })
 
         json_response = {

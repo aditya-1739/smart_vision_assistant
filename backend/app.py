@@ -210,9 +210,9 @@ def update_tracked_objects(current_preds, frame_shape):
         bbox = p["bbox"]
         
         if x_center < width * 0.32:
-            position = "left"
+            position = "right" # Inverted mapping: left side of frame is user's right
         elif x_center > width * 0.68:
-            position = "right"
+            position = "left"  # Inverted mapping: right side of frame is user's left
         else:
             position = "ahead"
         
@@ -231,8 +231,15 @@ def update_tracked_objects(current_preds, frame_shape):
         signature = get_object_signature(label, position)
         active_signatures.add(signature)
         
+        approx_distance_meters = max(0.5, 1.5 / (distance_ratio + 0.1))
+        # Invert horizontal position: 0 is right side of frame, 1 is left side
+        inverted_horizontal = 1.0 - (x_center / width)
+        
         if signature in tracked_objects:
             tracked_objects[signature]["last_seen"] = current_time
+            tracked_objects[signature]["horizontal_pos"] = inverted_horizontal
+            tracked_objects[signature]["distance_meters"] = approx_distance_meters
+            tracked_objects[signature]["distance"] = distance
         
         if signature not in tracked_objects:
             object_counter += 1
@@ -241,6 +248,8 @@ def update_tracked_objects(current_preds, frame_shape):
                 "label": label,
                 "position": position,
                 "distance": distance,
+                "distance_meters": approx_distance_meters,
+                "horizontal_pos": inverted_horizontal,
                 "first_seen": current_time,
                 "last_seen": current_time,
                 "last_announced": 0,
@@ -500,7 +509,9 @@ class CameraPipeline:
             
             objs_list = [{
                 'id': obj.get('id', 0), 'label': obj['label'],
-                'position': obj['position'], 'distance': obj['distance'], 'confidence': 0.0
+                'position': obj['position'], 'distance': obj['distance'], 'confidence': 0.0,
+                'horizontal_pos': obj.get('horizontal_pos', 0.5),
+                'distance_meters': obj.get('distance_meters', 2.0)
             } for sig, obj in tracked_objects.items()]
             anns_list = [{'text': a[0], 'priority': a[1]} for a in announcements]
             

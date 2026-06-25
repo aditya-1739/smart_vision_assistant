@@ -55,9 +55,9 @@ class ClientSession:
             bbox = p["bbox"]
             
             if x_center < width * 0.32:
-                position = "left"
+                position = "right" # Inverted mapping
             elif x_center > width * 0.68:
-                position = "right"
+                position = "left"  # Inverted mapping
             else:
                 position = "ahead"
             

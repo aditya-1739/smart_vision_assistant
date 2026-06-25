@@ -52,10 +52,14 @@ export const MiniRadar = ({ detections = [] }) => {
 
         {/* Object Dots */}
         {detections.map((obj, i) => {
-          // Calculate relative position. Future MiDaS integration will refine this math.
+          // Calculate precise relative position from backend tracking
           let leftPercent = 50; // center
-          if (obj.position === 'left') leftPercent = 25;
-          if (obj.position === 'right') leftPercent = 75;
+          if (obj.horizontal_pos !== undefined) {
+            leftPercent = obj.horizontal_pos * 100;
+          } else {
+            if (obj.position === 'left') leftPercent = 25;
+            if (obj.position === 'right') leftPercent = 75;
+          }
           
           let bottomPercent = 30; // default distance
           if (obj.distance_meters) {
