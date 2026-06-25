@@ -42,6 +42,16 @@ app = Flask(__name__, static_folder='../frontend/build', static_url_path='/')
 CORS(app, origins=settings.CORS_ORIGINS)
 socketio = SocketIO(app, cors_allowed_origins=settings.CORS_ORIGINS, async_mode=settings.ASYNC_MODE)
 
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    # In production, allow secure cookies
+    if settings.ENV == 'production':
+        response.set_cookie('session_id', 'secure_val', secure=True, httponly=True, samesite='None')
+    return response
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):

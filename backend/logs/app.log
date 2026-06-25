@@ -1,0 +1,9 @@
+2026-06-25 11:50:34,835 [INFO] app: Loading global YOLOv8 model...
+2026-06-25 11:50:34,896 [INFO] app: Global Model ready!
+2026-06-25 11:50:35,095 [INFO] app: 🌐 Smart Navigation Web Server (DEVELOPMENT)
+2026-06-25 11:50:39,885 [INFO] app: [Web] Client connected: 4P9r2QyAx0z_WAvtAAAB
+2026-06-25 11:51:34,799 [INFO] app: 🚀 Loading YOLOv8 model...
+2026-06-25 11:51:34,801 [INFO] app: ✅ Model ready!
+2026-06-25 11:51:34,816 [INFO] app: 🔊 SPEAKING: Navigation assistant ready
+2026-06-25 11:51:37,546 [INFO] app: 🔊 SPEAKING: Watch out! person very close ahead. Stop.
+2026-06-25 11:53:34,206 [INFO] app: [Web] Client disconnected: 4P9r2QyAx0z_WAvtAAAB

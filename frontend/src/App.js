@@ -70,7 +70,9 @@ function App() {
   const [uiMode, setUiMode] = useState('navigation'); // 'navigation', 'advanced'
   const [config, setConfig] = useState({
     confidence: 0.5,
-    ttsEnabled: true
+    ttsEnabled: true,
+    cameraMode: process.env.REACT_APP_CAMERA_MODE || 'local',
+    ttsMode: process.env.REACT_APP_TTS_MODE || 'local'
   });
   
   // Use a ref to prevent stale closures in socket event listeners
@@ -101,7 +103,8 @@ function App() {
 
   // Initialize socket connection
   useEffect(() => {
-    const newSocket = io('http://localhost:5000', {
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || '';
+    const newSocket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 5
@@ -133,7 +136,7 @@ function App() {
       // Handle TTS from V1 protocol
       if (data.tracking && data.tracking.announcements) {
         data.tracking.announcements.forEach(a => {
-          if (configRef.current.ttsEnabled && a.text) {
+          if (configRef.current.ttsEnabled && a.text && configRef.current.ttsMode === 'browser') {
             speakInBrowser(a.text, a.priority);
           }
         });
@@ -160,7 +163,7 @@ function App() {
         addEvent(`Voice instruction: ${data.text}`, 'info');
       }
       // Access the latest config via ref
-      if (configRef.current.ttsEnabled && data.text) {
+      if (configRef.current.ttsEnabled && data.text && configRef.current.ttsMode === 'browser') {
         speakInBrowser(data.text, data.urgent);
       }
     });
@@ -223,7 +226,8 @@ function App() {
 
   const startDetection = async () => {
     try {
-      const response = await fetch('/api/start', { method: 'POST' });
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
+      const response = await fetch(`${backendUrl}/api/start`, { method: 'POST' });
       const data = await response.json();
       if (data.status === 'started') {
         setIsRunning(true);
@@ -235,7 +239,8 @@ function App() {
 
   const stopDetection = async () => {
     try {
-      await fetch('/api/stop', { method: 'POST' });
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || '';
+      await fetch(`${backendUrl}/api/stop`, { method: 'POST' });
       setIsRunning(false);
       setDetections([]);
     } catch (error) {
