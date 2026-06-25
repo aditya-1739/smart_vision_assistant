@@ -5,6 +5,7 @@ import AudioGuide from './components/AudioGuide';
 import ObjectList from './components/ObjectList';
 import ControlPanel from './components/ControlPanel';
 import TopBar from './components/TopBar';
+import ActivityTimeline from './components/ActivityTimeline';
 
 const styles = {
   app: {
@@ -67,6 +68,8 @@ function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [detections, setDetections] = useState([]);
   const [audioMessage, setAudioMessage] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [voiceState, setVoiceState] = useState('muted'); // 'muted', 'listening', 'speaking'
   const [config, setConfig] = useState({
     confidence: 0.5,
     ttsEnabled: true
@@ -136,6 +139,16 @@ function App() {
           }
         });
       }
+
+      // Check for close objects to log warnings
+      if (data.objects) {
+        const closest = data.objects.reduce((min, obj) => (obj.distance_meters < min.distance_meters ? obj : min), data.objects[0]);
+        if (closest && closest.distance_meters < 1.0) {
+          addEvent(`Emergency stop! ${closest.label} at ${closest.distance_meters.toFixed(1)}m`, 'danger');
+        } else if (closest && closest.distance_meters < 2.5) {
+          addEvent(`Warning: ${closest.label} approaching`, 'warning');
+        }
+      }
     });
 
     newSocket.on('detections_update', (data) => {
@@ -144,6 +157,9 @@ function App() {
 
     newSocket.on('audio_guide', (data) => {
       setAudioMessage(data);
+      if (data.text) {
+        addEvent(`Voice instruction: ${data.text}`, 'info');
+      }
       // Access the latest config via ref
       if (configRef.current.ttsEnabled && data.text) {
         speakInBrowser(data.text, data.urgent);
@@ -168,6 +184,18 @@ function App() {
     };
   }, []);
 
+  const addEvent = useCallback((text, type = 'info') => {
+    setEvents(prev => {
+      // Don't add duplicate back-to-back events
+      if (prev.length > 0 && prev[0].text === text) return prev;
+      
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const newEvents = [{ text, type, time: timeStr }, ...prev].slice(0, 10);
+      return newEvents;
+    });
+  }, []);
+
   // Browser-based TTS (for web accessibility)
   const speakInBrowser = useCallback((text, urgent = false) => {
     if (!window.speechSynthesis) return;
@@ -187,6 +215,10 @@ function App() {
     if (preferredVoice) {
       utterance.voice = preferredVoice;
     }
+    
+    utterance.onstart = () => setVoiceState('speaking');
+    utterance.onend = () => setVoiceState(configRef.current.ttsEnabled ? 'listening' : 'muted');
+    
     window.speechSynthesis.speak(utterance);
   }, []);
 
@@ -215,11 +247,16 @@ function App() {
   const toggleTTS = () => {
     const newValue = !config.ttsEnabled;
     setConfig(prev => ({ ...prev, ttsEnabled: newValue }));
+    setVoiceState(newValue ? 'listening' : 'muted');
     socket?.emit('toggle_tts', { enabled: newValue });
     
-    // Stop any ongoing speech immediately when disabled
-    if (!newValue && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
+    if (newValue) {
+      addEvent('Voice assistance enabled', 'safe');
+    } else {
+      addEvent('Voice assistance muted', 'warning');
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
     }
   };
 
@@ -274,6 +311,7 @@ function App() {
               isEnabled={config.ttsEnabled}
               onToggle={toggleTTS}
               closestObject={closestObject}
+              voiceState={voiceState}
             />
           </div>
 
@@ -282,6 +320,10 @@ function App() {
               objects={detections}
               isRunning={isRunning}
             />
+          </div>
+
+          <div style={{...styles.glassCard, overflow: 'hidden'}} role="region" aria-label="Activity Timeline">
+            <ActivityTimeline events={events} />
           </div>
 
           <div style={styles.glassCard} role="region" aria-label="System Controls">

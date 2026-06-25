@@ -39,7 +39,7 @@ const DistanceBar = ({ distance, maxDistance = 5.0, color }) => {
   );
 };
 
-function AudioGuide({ message, isEnabled, onToggle, closestObject }) {
+function AudioGuide({ message, isEnabled, onToggle, closestObject, voiceState }) {
   const navState = getNavigationState(closestObject);
   
   const panelStyle = {
@@ -61,16 +61,44 @@ function AudioGuide({ message, isEnabled, onToggle, closestObject }) {
     zIndex: 0,
   };
 
+  const renderVoiceState = () => {
+    if (voiceState === 'speaking') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-info)' }}>
+          <span style={{ animation: 'pulse-subtle 1s infinite' }}>🎤</span>
+          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: '600' }}>Speaking...</span>
+        </div>
+      );
+    } else if (voiceState === 'listening') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--status-safe)' }}>
+          <span>🎤</span>
+          <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: '600' }}>Listening...</span>
+        </div>
+      );
+    } else {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+          <span>🔇</span>
+          <span style={{ fontSize: 'var(--font-size-sm)' }}>Muted</span>
+        </div>
+      );
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
         <SectionTitle title="Navigation Guidance" icon="🧭" style={{ marginBottom: 0 }} />
-        <IconButton 
-          icon={isEnabled ? '🔊' : '🔇'} 
-          active={isEnabled} 
-          onClick={onToggle} 
-          title="Toggle Voice Announcements"
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+          {renderVoiceState()}
+          <IconButton 
+            icon={isEnabled ? '🔊' : '🔇'} 
+            active={isEnabled} 
+            onClick={onToggle} 
+            title="Toggle Voice Announcements"
+          />
+        </div>
       </div>
 
       <Panel style={panelStyle}>
