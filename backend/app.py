@@ -9,6 +9,8 @@ from collections import deque
 from datetime import datetime
 import numpy as np
 
+start_time = time.time()
+
 from utils.logger import get_logger
 from config.settings import settings
 from ai.pipeline import AIPipeline
@@ -36,9 +38,30 @@ except Exception as e:
     logger.error(f"Failed to load model: {e}")
 
 
-app = Flask(__name__)
-CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+app = Flask(__name__, static_folder='../frontend/build', static_url_path='/')
+CORS(app, origins=settings.CORS_ORIGINS)
+socketio = SocketIO(app, cors_allowed_origins=settings.CORS_ORIGINS, async_mode=settings.ASYNC_MODE)
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return app.send_static_file(path)
+    else:
+        return app.send_static_file('index.html')
+
+@app.route('/api/v1/health', methods=['GET'])
+def health_check():
+    return jsonify({
+        "status": "ok",
+        "version": "1.0.0",
+        "backend": "running",
+        "camera": "local" if settings.CAMERA_MODE == 'local' else "browser",
+        "model": "loaded" if 'ai_pipeline' in globals() else "unloaded",
+        "tts": "ready" if settings.TTS_MODE == 'local' else "browser",
+        "uptime": str(time.time() - start_time),
+        "mode": settings.CAMERA_MODE
+    })
 
 # Import your detection (adjust path if needed)
 try:
@@ -627,9 +650,6 @@ def handle_set_confidence(data):
     MIN_CONFIDENCE = max(0.05, min(0.95, val))
     logger.info(f'[Settings] Confidence threshold updated to {MIN_CONFIDENCE}')
 
-if __name__ == '__main__':
-    logger.info("🌐 Smart Navigation Web Server (Optimized)")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
 
 @socketio.on('v1/process_frame')
 def handle_process_frame(data):
@@ -655,9 +675,18 @@ def handle_process_frame(data):
         
         # Update JSON with tracking info and system mode
         json_response['tracking']['announcements'] = [{'text': a[0], 'priority': a[1]} for a in announcements]
-        json_response['system']['camera_mode'] = settings.CAMERA_MODE
+        json_response['tts_mode'] = settings.TTS_MODE
         
-        emit('v1/detections_update', json_response, room=sid)
+        emit('v1/detections_update', json_response)
         
     except Exception as e:
-        logger.error(f'[Socket] Error processing frame: {e}')
+        pass
+
+if __name__ == '__main__':
+    logger.info(f"🌐 Smart Navigation Web Server ({settings.ENV.upper()})")
+    
+    if settings.ENV == 'development':
+        socketio.run(app, host='0.0.0.0', port=5000, debug=settings.DEBUG, use_reloader=False, allow_unsafe_werkzeug=True)
+    else:
+        logger.info(f"Running production server using {settings.ASYNC_MODE}...")
+        socketio.run(app, host='0.0.0.0', port=5000, debug=False)
