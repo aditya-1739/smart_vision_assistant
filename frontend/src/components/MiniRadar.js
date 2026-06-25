@@ -40,6 +40,8 @@ export const MiniRadar = ({ detections = [] }) => {
         <div style={{ 
           position: 'absolute', 
           bottom: '10px', 
+          left: '50%',
+          transform: 'translateX(-50%)',
           zIndex: 10,
           display: 'flex',
           flexDirection: 'column',
@@ -51,49 +53,86 @@ export const MiniRadar = ({ detections = [] }) => {
         </div>
 
         {/* Object Dots */}
-        {detections.map((obj, i) => {
-          // Calculate precise relative position from backend tracking
-          let leftPercent = 50; // center
-          if (obj.horizontal_pos !== undefined) {
-            leftPercent = obj.horizontal_pos * 100;
-          } else {
-            if (obj.position === 'left') leftPercent = 25;
-            if (obj.position === 'right') leftPercent = 75;
-          }
+        {(() => {
+          const placedDots = [];
           
-          let bottomPercent = 30; // default distance
-          if (obj.distance_meters) {
-            // map 0.5m - 5m to 10% - 90%
-            bottomPercent = Math.max(10, Math.min(90, (obj.distance_meters / 5) * 100));
-          }
+          return detections.map((obj, i) => {
+            // Calculate precise relative position from backend tracking
+            let leftPercent = 50; // center
+            if (obj.horizontal_pos !== undefined) {
+              leftPercent = obj.horizontal_pos * 100;
+            } else {
+              if (obj.position === 'left') leftPercent = 25;
+              if (obj.position === 'right') leftPercent = 75;
+            }
+            
+            let bottomPercent = 30; // default distance
+            if (obj.distance_meters) {
+              // map 0.5m - 5m to 10% - 90%
+              bottomPercent = Math.max(10, Math.min(90, (obj.distance_meters / 5) * 100));
+            }
 
-          const isDanger = obj.distance_meters && obj.distance_meters <= 1.0;
+            // Collision resolution to prevent overlapping dots
+            let shiftedLeft = leftPercent;
+            let shiftedBottom = bottomPercent;
+            const threshold = 15; // percentage threshold for overlap
+            
+            let hasCollision = true;
+            let attempts = 0;
+            while(hasCollision && attempts < 10) {
+              hasCollision = false;
+              for (const placed of placedDots) {
+                const dist = Math.hypot(shiftedLeft - placed.left, shiftedBottom - placed.bottom);
+                if (dist < threshold) {
+                  hasCollision = true;
+                  // Push apart horizontally
+                  if (shiftedLeft >= placed.left) {
+                    shiftedLeft += 8;
+                  } else {
+                    shiftedLeft -= 8;
+                  }
+                  // Stagger vertically
+                  shiftedBottom += 6;
+                }
+              }
+              attempts++;
+            }
+            
+            // Constrain to container
+            shiftedLeft = Math.max(5, Math.min(95, shiftedLeft));
+            shiftedBottom = Math.max(10, Math.min(95, shiftedBottom));
+            
+            placedDots.push({ left: shiftedLeft, bottom: shiftedBottom });
 
-          return (
-            <div key={i} style={{
-              position: 'absolute',
-              left: `${leftPercent}%`,
-              bottom: `${bottomPercent}%`,
-              transform: 'translate(-50%, 50%)',
-              zIndex: 5,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary)', whiteSpace: 'nowrap', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
-                {obj.label}
-              </span>
-              <div style={{ 
-                width: '10px', 
-                height: '10px', 
-                background: isDanger ? 'var(--status-danger)' : 'var(--status-safe)', 
-                borderRadius: '50%',
-                boxShadow: `0 0 8px ${isDanger ? 'var(--status-danger)' : 'var(--status-safe)'}`
-              }} />
-            </div>
-          );
-        })}
+            const isDanger = obj.distance_meters && obj.distance_meters <= 1.0;
+
+            return (
+              <div key={i} style={{
+                position: 'absolute',
+                left: `${shiftedLeft}%`,
+                bottom: `${shiftedBottom}%`,
+                transform: 'translate(-50%, 50%)',
+                zIndex: 5,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.3s ease-out'
+              }}>
+                <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-primary)', whiteSpace: 'nowrap', textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+                  {obj.label}
+                </span>
+                <div style={{ 
+                  width: '10px', 
+                  height: '10px', 
+                  background: isDanger ? 'var(--status-danger)' : 'var(--status-safe)', 
+                  borderRadius: '50%',
+                  boxShadow: `0 0 8px ${isDanger ? 'var(--status-danger)' : 'var(--status-safe)'}`
+                }} />
+              </div>
+            );
+          });
+        })()}
       </Panel>
     </div>
   );
