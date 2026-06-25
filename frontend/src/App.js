@@ -6,6 +6,7 @@ import ObjectList from './components/ObjectList';
 import ControlPanel from './components/ControlPanel';
 import TopBar from './components/TopBar';
 import ActivityTimeline from './components/ActivityTimeline';
+import MiniRadar from './components/MiniRadar';
 
 const styles = {
   app: {
@@ -320,6 +321,10 @@ function App() {
               objects={detections}
               isRunning={isRunning}
             />
+          </div>
+
+          <div style={{...styles.glassCard, overflow: 'hidden', minHeight: '250px'}} role="region" aria-label="Spatial Radar">
+            <MiniRadar detections={detections} />
           </div>
 
           <div style={{...styles.glassCard, overflow: 'hidden'}} role="region" aria-label="Activity Timeline">

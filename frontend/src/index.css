@@ -110,6 +110,11 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes radar-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Utilities */
 ::-webkit-scrollbar {
   width: 8px;
