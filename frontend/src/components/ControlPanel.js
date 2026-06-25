@@ -1,163 +1,142 @@
 import React from 'react';
+import { SectionTitle, PrimaryButton } from './ui';
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '1.2rem',
-    fontWeight: '600',
-    color: 'var(--accent-primary)',
-    marginBottom: '-5px',
-  },
-  mainActionBtn: {
-    width: '100%',
-    padding: '12px',
-    fontSize: '1.2rem',
-    borderRadius: '12px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-  },
-  settingsGroup: {
-    background: 'rgba(255,255,255,0.02)',
-    border: '1px solid var(--glass-border)',
-    borderRadius: '12px',
-    padding: '12px',
-  },
-  settingTitle: {
-    fontSize: '0.8rem',
-    color: 'var(--text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: '1px',
-    marginBottom: '10px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  sliderContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  slider: {
-    width: '100%',
-    height: '6px',
-    borderRadius: '3px',
-    background: 'rgba(255,255,255,0.1)',
-    outline: 'none',
-    WebkitAppearance: 'none',
-    cursor: 'pointer',
-  },
-  sliderLabels: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '0.8rem',
-    color: 'var(--text-secondary)',
-  },
-  toggleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: '10px',
-    marginTop: '10px',
-    borderTop: '1px dashed var(--glass-border)',
-    cursor: 'pointer',
-  },
-  toggleLabel: {
-    fontSize: '1.05rem',
-    color: '#fff',
-    fontWeight: '500',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-  toggleSwitch: {
-    width: '46px',
-    height: '24px',
-    background: 'rgba(255,255,255,0.1)',
-    borderRadius: '12px',
-    position: 'relative',
-    transition: 'all 0.3s',
-  },
-  toggleSwitchOn: {
-    background: 'var(--accent-success)',
-  },
-  toggleKnob: {
-    width: '20px',
-    height: '20px',
-    background: '#fff',
-    borderRadius: '50%',
-    position: 'absolute',
-    top: '2px',
-    left: '2px',
-    transition: 'transform 0.3s',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-  },
-  toggleKnobOn: {
-    transform: 'translateX(22px)',
-  },
-};
+const ToggleSwitch = ({ checked, onChange, label, icon }) => (
+  <div 
+    onClick={onChange}
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 'var(--spacing-md)',
+      background: 'var(--bg-surface-hover)',
+      borderRadius: 'var(--border-radius-md)',
+      cursor: 'pointer',
+      transition: 'var(--transition-fast)',
+    }}
+  >
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+      {icon && <span style={{ fontSize: '1.2rem' }}>{icon}</span>}
+      <span style={{ fontSize: 'var(--font-size-md)', fontWeight: '500' }}>{label}</span>
+    </div>
+    
+    <div style={{
+      width: '44px',
+      height: '24px',
+      background: checked ? 'var(--status-safe)' : 'var(--bg-secondary)',
+      borderRadius: '12px',
+      position: 'relative',
+      transition: 'var(--transition-normal)',
+      border: `1px solid ${checked ? 'var(--status-safe)' : 'var(--border-color)'}`
+    }}>
+      <div style={{
+        width: '18px',
+        height: '18px',
+        background: '#fff',
+        borderRadius: '50%',
+        position: 'absolute',
+        top: '2px',
+        left: checked ? '22px' : '2px',
+        transition: 'var(--transition-normal)',
+        boxShadow: 'var(--shadow-sm)'
+      }} />
+    </div>
+  </div>
+);
+
+const RangeSlider = ({ value, onChange, label, icon, minLabel, maxLabel }) => (
+  <div style={{
+    padding: 'var(--spacing-md)',
+    background: 'var(--bg-surface-hover)',
+    borderRadius: 'var(--border-radius-md)',
+  }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+        {icon && <span style={{ fontSize: '1.2rem' }}>{icon}</span>}
+        <span style={{ fontSize: 'var(--font-size-md)', fontWeight: '500' }}>{label}</span>
+      </div>
+      <span style={{ color: 'var(--status-info)', fontWeight: '700' }}>
+        {Math.round(value * 100)}%
+      </span>
+    </div>
+    
+    <input
+      type="range"
+      min="0.1"
+      max="0.9"
+      step="0.1"
+      value={value}
+      onChange={(e) => onChange(parseFloat(e.target.value))}
+      style={{
+        width: '100%',
+        height: '6px',
+        borderRadius: '3px',
+        background: `linear-gradient(to right, var(--status-info) ${((value - 0.1) / 0.8) * 100}%, var(--bg-secondary) ${((value - 0.1) / 0.8) * 100}%)`,
+        outline: 'none',
+        WebkitAppearance: 'none',
+        cursor: 'pointer',
+        marginBottom: 'var(--spacing-sm)'
+      }}
+      aria-label={label}
+    />
+    
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
+      <span>{minLabel}</span>
+      <span>{maxLabel}</span>
+    </div>
+  </div>
+);
 
 function ControlPanel({ config, isRunning, onStart, onStop, onToggleTTS, onConfidenceChange }) {
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        ⚙️ Settings & Controls
-      </div>
-
-      <button
-        onClick={isRunning ? onStop : onStart}
-        className={`btn ${isRunning ? 'btn-danger' : 'btn-primary'}`}
-        style={styles.mainActionBtn}
-        aria-label={isRunning ? 'Pause navigation' : 'Start navigation'}
-      >
-        {isRunning ? (
-          <><span>⏸</span> Pause System</>
-        ) : (
-          <><span>▶</span> Start System</>
-        )}
-      </button>
-
-      <div style={styles.settingsGroup}>
-        <div style={styles.settingTitle}>
-          <span>🎯</span> Detection Sensitivity
-        </div>
-        <div style={styles.sliderContainer}>
-          <input
-            type="range"
-            min="0.1"
-            max="0.9"
-            step="0.1"
-            value={config.confidence}
-            onChange={(e) => onConfidenceChange(parseFloat(e.target.value))}
-            style={styles.slider}
-            aria-label="Detection confidence threshold"
-          />
-          <div style={styles.sliderLabels}>
-            <span>More Sensitive</span>
-            <span style={{ color: 'var(--accent-primary)', fontWeight: '600' }}>
-              {Math.round(config.confidence * 100)}%
-            </span>
-            <span>More Accurate</span>
-          </div>
-        </div>
-      </div>
-
-      <div style={styles.settingsGroup}>
-        <div style={styles.settingTitle}>
-          <span>🔊</span> Audio Preferences
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <SectionTitle title="System Controls" icon="⚙️" style={{ marginBottom: 'var(--spacing-sm)' }} />
+      
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)', overflowY: 'auto', paddingRight: '4px' }}>
         
-        <div style={styles.toggleRow} onClick={onToggleTTS}>
-          <span style={styles.toggleLabel}>Audio Announcements</span>
-          <div style={{...styles.toggleSwitch, ...(config.ttsEnabled ? styles.toggleSwitchOn : {})}}>
-            <div style={{...styles.toggleKnob, ...(config.ttsEnabled ? styles.toggleKnobOn : {})}} />
+        {/* Main Action Button */}
+        <PrimaryButton 
+          onClick={isRunning ? onStop : onStart}
+          danger={isRunning}
+          style={{ width: '100%', padding: 'var(--spacing-md)' }}
+        >
+          {isRunning ? (
+            <><span style={{ fontSize: '1.2rem' }}>⏸</span> Pause System</>
+          ) : (
+            <><span style={{ fontSize: '1.2rem' }}>▶</span> Start System</>
+          )}
+        </PrimaryButton>
+
+        {/* Navigation Settings */}
+        <div>
+          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 'var(--spacing-sm)', marginTop: 'var(--spacing-sm)' }}>
+            Navigation Intelligence
+          </div>
+          <RangeSlider 
+            value={config.confidence}
+            onChange={onConfidenceChange}
+            label="Detection Sensitivity"
+            icon="🎯"
+            minLabel="More Sensitive"
+            maxLabel="More Accurate"
+          />
+        </div>
+
+        {/* Preferences */}
+        <div>
+          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 'var(--spacing-sm)', marginTop: 'var(--spacing-xs)' }}>
+            Preferences
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-sm)' }}>
+            <ToggleSwitch 
+              checked={config.ttsEnabled}
+              onChange={onToggleTTS}
+              label="Audio Announcements"
+              icon="🔊"
+            />
           </div>
         </div>
+
       </div>
     </div>
   );
