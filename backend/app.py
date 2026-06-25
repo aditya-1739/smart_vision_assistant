@@ -355,8 +355,8 @@ class CameraPipeline:
             return True
         
         self.stream = cv2.VideoCapture(0)
-        self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         
         # We don't fail immediately, in case we're headless. We will use a dummy frame fallback.
         self.is_running = True
@@ -482,15 +482,7 @@ class CameraPipeline:
                 txt = f"{label} {conf_score:.2f}"
                 cv2.putText(annotated, txt, (x1 + 2, y1 - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 0), 2)
             
-            status_text = f"Objects: {len(preds)} | Tracked: {len(tracked_objects)}"
-            cv2.putText(annotated, status_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-            cv2.putText(annotated, f"Inf FPS: {self.stats['inference_fps']:.1f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-            
-            y_offset = 90
-            for sig, obj in list(tracked_objects.items())[:5]:
-                info = f"{obj['label']}: {obj['position']} ({obj['distance']})"
-                cv2.putText(annotated, info, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-                y_offset += 25
+            # Removed debug overlays to keep camera feed clean for frontend
                 
             with self.annotated_frame_lock:
                 self.latest_annotated_frame = annotated

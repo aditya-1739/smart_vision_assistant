@@ -11,14 +11,14 @@ import { SegmentedControl } from './components/ui';
 
 const styles = {
   app: {
-    padding: 'var(--spacing-md) var(--spacing-lg)',
+    padding: 'var(--spacing-sm) var(--spacing-md)',
     maxWidth: '1920px',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
     height: '100vh',
     overflow: 'hidden',
-    gap: 'var(--spacing-md)',
+    gap: 'var(--spacing-sm)',
   },
   cameraSection: {
     display: 'flex',
@@ -29,7 +29,7 @@ const styles = {
   sidePanel: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 'var(--spacing-md)',
+    gap: 'var(--spacing-sm)',
     height: '100%',
     minHeight: 0,
     overflow: 'hidden', /* Remove unnecessary scrolling at the root side panel level */
@@ -281,7 +281,7 @@ function App() {
         toggleAccessibility={toggleAccessibility}
       />
 
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--spacing-md)' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--spacing-sm)' }}>
         <SegmentedControl 
           options={[
             { label: 'Navigation Mode', value: 'navigation' },
@@ -323,22 +323,22 @@ function App() {
 
           {uiMode === 'advanced' && (
             <>
-              <div style={{...styles.glassCard, overflow: 'hidden'}} role="region" aria-label="Detected Objects History">
+              <div style={{...styles.glassCard, flex: 1, overflow: 'hidden'}} role="region" aria-label="Detected Objects History">
                 <ObjectList 
                   objects={detections}
                   isRunning={isRunning}
                 />
               </div>
 
-              <div style={{...styles.glassCard, overflow: 'hidden', minHeight: '250px'}} role="region" aria-label="Spatial Radar">
+              <div style={{...styles.glassCard, flex: 1, overflow: 'hidden'}} role="region" aria-label="Spatial Radar">
                 <MiniRadar detections={detections} />
               </div>
 
-              <div style={{...styles.glassCard, overflow: 'hidden'}} role="region" aria-label="Activity Timeline">
+              <div style={{...styles.glassCard, flex: 1, overflow: 'hidden'}} role="region" aria-label="Activity Timeline">
                 <ActivityTimeline events={events} />
               </div>
 
-              <div style={styles.glassCard} role="region" aria-label="System Controls">
+              <div style={{...styles.glassCard, flex: 1.5}} role="region" aria-label="System Controls">
                 <ControlPanel
                   config={config}
                   isRunning={isRunning}
