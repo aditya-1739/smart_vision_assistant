@@ -9,6 +9,11 @@ from collections import deque
 from datetime import datetime
 import numpy as np
 
+from utils.logger import get_logger
+from config.settings import settings
+
+logger = get_logger('app')
+
 # pyrefly: ignore [missing-import]
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
@@ -29,10 +34,10 @@ except ImportError:
         from src.detection.model_loader import load_model, warmup, predict_image, get_spatial_cues
         DETECTION_AVAILABLE = True
     except ImportError:
-        print("[ERROR] Cannot find detection modules. Make sure src/ folder exists!")
+        logger.info("[ERROR] Cannot find detection modules. Make sure src/ folder exists!")
         DETECTION_AVAILABLE = False
 
-MIN_CONFIDENCE = 0.50
+MIN_CONFIDENCE = settings.CONFIDENCE_THRESHOLD
 UPDATE_COOLDOWN = 2.5
 PATH_CLEAR_INTERVAL = 6.0
 
@@ -95,7 +100,7 @@ class RobustTTS:
                 time.sleep(0.05)
     
     def _speak_blocking(self, text):
-        print(f"🔊 SPEAKING: {text}")
+        logger.info(f"🔊 SPEAKING: {text}")
         if self.system == "Windows":
             try:
                 import win32com.client
@@ -131,7 +136,7 @@ class RobustTTS:
                 self.pyttsx3_engine.say(text)
                 self.pyttsx3_engine.runAndWait()
             except Exception as e:
-                print(f"❌ TTS failed: {e}")
+                logger.info(f"❌ TTS failed: {e}")
     
     def speak(self, text, priority=False):
         if not self.enabled:
@@ -394,11 +399,11 @@ class CameraPipeline:
 
     def _inference_thread(self):
         """Phase 2: Inference Thread (Consumer)"""
-        print("🚀 Loading YOLOv8 model...")
+        logger.info("🚀 Loading YOLOv8 model...")
         self.model = load_model(None, device=None, half=True, verbose=True)
         # Phase 4: Model Warm-Up
         warmup(self.model, imgsz=640, steps=3)
-        print("✅ Model ready!")
+        logger.info("✅ Model ready!")
         
         global tracked_objects, object_counter, last_path_clear_announcement
         tracked_objects = {}
@@ -574,13 +579,13 @@ def video_feed():
 
 @socketio.on('connect')
 def handle_connect():
-    print(f'[Web] Client connected: {request.sid}')
+    logger.info(f'[Web] Client connected: {request.sid}')
     # tts.enabled = False (Removed to restore server-side audio)
     emit('connected', {'status': 'connected'})
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print(f'[Web] Client disconnected: {request.sid}')
+    logger.info(f'[Web] Client disconnected: {request.sid}')
     tts.enabled = True
 
 @socketio.on('toggle_tts')
@@ -589,15 +594,15 @@ def handle_toggle_tts(data):
     tts.enabled = enabled
     if not enabled:
         tts.clear_queue()
-    print(f'[Settings] TTS Enabled: {enabled}')
+    logger.info(f'[Settings] TTS Enabled: {enabled}')
 
 @socketio.on('set_confidence')
 def handle_set_confidence(data):
     global MIN_CONFIDENCE
     val = float(data.get('value', 0.5))
     MIN_CONFIDENCE = max(0.05, min(0.95, val))
-    print(f'[Settings] Confidence threshold updated to {MIN_CONFIDENCE}')
+    logger.info(f'[Settings] Confidence threshold updated to {MIN_CONFIDENCE}')
 
 if __name__ == '__main__':
-    print("🌐 Smart Navigation Web Server (Optimized)")
+    logger.info("🌐 Smart Navigation Web Server (Optimized)")
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
