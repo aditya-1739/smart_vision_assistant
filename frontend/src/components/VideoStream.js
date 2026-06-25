@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useWebRTC } from '../hooks/useWebRTC';
+import UnifiedOverlay from './UnifiedOverlay';
 
 const styles = {
   container: {
@@ -100,7 +102,8 @@ const styles = {
   },
 };
 
-function VideoStream({ isRunning, onStart }) {
+function VideoStream({ isRunning, onStart, isCloudMode, socket, detections }) {
+  const { videoRef, canvasRef } = useWebRTC(socket, isRunning && isCloudMode);
   const [fps, setFps] = useState(0);
   const [latency, setLatency] = useState(0);
   const containerRef = useRef(null);
@@ -154,14 +157,33 @@ function VideoStream({ isRunning, onStart }) {
     <div ref={containerRef} style={{...styles.container, borderRadius: isFullscreen ? '0' : '20px'}}>
       {isRunning ? (
         <div style={styles.videoWrapper}>
-          <img 
-            src="http://localhost:5000/video_feed"
-            alt="Live camera feed with object detection overlay"
-            style={styles.video}
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
-          />
+          
+          {isCloudMode ? (
+            <>
+              <video 
+                ref={videoRef} 
+                style={styles.video} 
+                playsInline 
+                muted 
+              />
+              <canvas ref={canvasRef} style={{display: 'none'}} />
+              <UnifiedOverlay 
+                videoRef={videoRef} 
+                detections={detections} 
+                isCloudMode={isCloudMode} 
+              />
+            </>
+          ) : (
+            <img 
+              src="http://localhost:5000/video_feed"
+              alt="Live camera feed with object detection overlay"
+              style={styles.video}
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          )}
+
           
           <div style={styles.overlayTop}>
             <div style={{...styles.badge, ...styles.liveBadge}} role="status">

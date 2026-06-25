@@ -237,11 +237,16 @@ function App() {
         {/* Left Column: 60% Width for Camera Focus */}
         <div style={styles.cameraSection}>
           <div style={{...styles.glassCard, flex: 1, padding: 0, overflow: 'hidden'}} role="region" aria-label="Live Camera Feed">
+            
             <VideoStream 
               isRunning={isRunning}
               onStart={startDetection}
               onStop={stopDetection}
+              isCloudMode={config.cameraMode === 'browser'}
+              socket={socket}
+              detections={detections}
             />
+
           </div>
         </div>
 

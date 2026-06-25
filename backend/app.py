@@ -22,6 +22,19 @@ from flask_socketio import SocketIO, emit
 
 active_clients = {}
 
+from ai.pipeline import AIPipeline
+
+from src.detection.model_loader import load_model, warmup
+logger.info("Loading global YOLOv8 model...")
+try:
+    global_model = load_model(None, device=None, half=True, verbose=True)
+    warmup(global_model, imgsz=640, steps=3)
+    ai_pipeline = AIPipeline(global_model)
+    logger.info("Global Model ready!")
+except Exception as e:
+    logger.error(f"Failed to load model: {e}")
+
+
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
@@ -406,7 +419,9 @@ class CameraPipeline:
         self.model = load_model(None, device=None, half=True, verbose=True)
         # Phase 4: Model Warm-Up
         warmup(self.model, imgsz=640, steps=3)
-        self.ai_pipeline = AIPipeline(self.model)
+        global ai_pipeline
+        ai_pipeline = AIPipeline(self.model)
+        self.ai_pipeline = ai_pipeline
         logger.info("✅ Model ready!")
         
         global tracked_objects, object_counter, last_path_clear_announcement
@@ -584,7 +599,7 @@ def handle_connect():
     sid = request.sid
     logger.info(f'[Web] Client connected: {sid}')
     active_clients[sid] = ClientSession(sid)
-    emit('connected', {'status': 'connected'})
+    emit('connected', {'status': 'connected', 'config': {'confidence': MIN_CONFIDENCE, 'ttsEnabled': tts.enabled, 'cameraMode': settings.CAMERA_MODE}})
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -611,3 +626,34 @@ def handle_set_confidence(data):
 if __name__ == '__main__':
     logger.info("🌐 Smart Navigation Web Server (Optimized)")
     socketio.run(app, host='0.0.0.0', port=5000, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
+
+@socketio.on('v1/process_frame')
+def handle_process_frame(data):
+    sid = request.sid
+    if sid not in active_clients:
+        return
+    
+    session = active_clients[sid]
+    
+    try:
+        # Decode binary JPEG data
+        np_arr = np.frombuffer(data, np.uint8)
+        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            return
+            
+        # Process frame
+        json_response, preds = ai_pipeline.process_frame(frame)
+        
+        # Track objects
+        announcements = session.update_tracked_objects(preds, frame.shape)
+        
+        # Update JSON with tracking info and system mode
+        json_response['tracking']['announcements'] = [{'text': a[0], 'priority': a[1]} for a in announcements]
+        json_response['system']['camera_mode'] = settings.CAMERA_MODE
+        
+        emit('v1/detections_update', json_response, room=sid)
+        
+    except Exception as e:
+        logger.error(f'[Socket] Error processing frame: {e}')
