@@ -11,6 +11,7 @@ import numpy as np
 
 from utils.logger import get_logger
 from config.settings import settings
+from ai.pipeline import AIPipeline
 
 logger = get_logger('app')
 
@@ -403,6 +404,7 @@ class CameraPipeline:
         self.model = load_model(None, device=None, half=True, verbose=True)
         # Phase 4: Model Warm-Up
         warmup(self.model, imgsz=640, steps=3)
+        self.ai_pipeline = AIPipeline(self.model)
         logger.info("✅ Model ready!")
         
         global tracked_objects, object_counter, last_path_clear_announcement
@@ -431,11 +433,8 @@ class CameraPipeline:
                 
             start_t = time.time()
             
-            # Reverted to imgsz=640 to restore full detection accuracy
-            preds, _ = predict_image(
-                self.model, frame, conf=MIN_CONFIDENCE, iou=0.45, imgsz=640,
-                annotate=False, class_name_filter=CLASS_FILTER
-            )
+            # Use isolated AI Pipeline
+            json_response, preds = self.ai_pipeline.process_frame(frame)
             
             annotated = frame 
             
