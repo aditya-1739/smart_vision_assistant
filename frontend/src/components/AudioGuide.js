@@ -1,5 +1,5 @@
 import React from 'react';
-import { Panel, SectionTitle, IconButton } from './ui';
+import { Panel, SectionTitle, IconButton, PrimaryButton } from './ui';
 
 const getNavigationState = (closestObject) => {
   if (!closestObject) return { level: 'clear', color: 'var(--status-safe)', icon: '✅', title: 'Path Clear', action: 'Proceed safely' };
@@ -35,7 +35,7 @@ const InfoBlock = ({ label, value, valueColor = '#fff', icon }) => (
   </div>
 );
 
-function AudioGuide({ message, isEnabled, onToggle, closestObject, voiceState }) {
+function AudioGuide({ message, isEnabled, onToggle, closestObject, voiceState, isRunning, onStart, onStop }) {
   const navState = getNavigationState(closestObject);
   
   const renderVoiceState = () => {
@@ -137,6 +137,21 @@ function AudioGuide({ message, isEnabled, onToggle, closestObject, voiceState })
             label="Confidence" 
             value={closestObject ? `${Math.round(closestObject.confidence * 100)}%` : '--'} 
           />
+        </div>
+
+        {/* Start/Stop Navigation Control */}
+        <div style={{ zIndex: 1, marginTop: 'auto', paddingTop: 'var(--spacing-sm)' }}>
+          <PrimaryButton 
+            onClick={isRunning ? onStop : onStart}
+            danger={isRunning}
+            style={{ width: '100%', padding: 'var(--spacing-md)' }}
+          >
+            {isRunning ? (
+              <><span style={{ fontSize: '1.2rem' }}>⏸</span> Pause Navigation</>
+            ) : (
+              <><span style={{ fontSize: '1.2rem' }}>▶</span> Start Navigation</>
+            )}
+          </PrimaryButton>
         </div>
       </Panel>
     </div>

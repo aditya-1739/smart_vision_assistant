@@ -7,6 +7,7 @@ import ControlPanel from './components/ControlPanel';
 import TopBar from './components/TopBar';
 import ActivityTimeline from './components/ActivityTimeline';
 import MiniRadar from './components/MiniRadar';
+import RawDataStream from './components/RawDataStream';
 import { SegmentedControl } from './components/ui';
 
 const styles = {
@@ -32,7 +33,8 @@ const styles = {
     gap: 'var(--spacing-sm)',
     height: '100%',
     minHeight: 0,
-    overflow: 'hidden', /* Remove unnecessary scrolling at the root side panel level */
+    overflowY: 'auto', /* Added scrolling for developer mode */
+    paddingRight: '4px',
   },
   glassCard: {
     background: 'var(--bg-surface)',
@@ -63,6 +65,7 @@ function App() {
   const [detections, setDetections] = useState([]);
   const [audioMessage, setAudioMessage] = useState(null);
   const [events, setEvents] = useState([]);
+  const [rawPayload, setRawPayload] = useState({});
   const [voiceState, setVoiceState] = useState('muted'); // 'muted', 'listening', 'speaking'
   const [uiMode, setUiMode] = useState('navigation'); // 'navigation', 'advanced'
   const [config, setConfig] = useState({
@@ -125,6 +128,7 @@ function App() {
     
     newSocket.on('v1/detections_update', (data) => {
       setDetections(data.objects || []);
+      setRawPayload(data);
       
       // Handle TTS from V1 protocol
       if (data.tracking && data.tracking.announcements) {
@@ -311,34 +315,37 @@ function App() {
 
         {/* Right Column */}
         <div style={styles.sidePanel}>
-          <div style={{...styles.glassCard, ...(uiMode === 'navigation' ? { flex: 1 } : {})}} role="region" aria-label="Audio Navigation Guide">
+          <div style={{...styles.glassCard, ...(uiMode === 'navigation' ? { flex: 1 } : { minHeight: '350px' })}} role="region" aria-label="Audio Navigation Guide">
             <AudioGuide 
               message={audioMessage}
               isEnabled={config.ttsEnabled}
               onToggle={toggleTTS}
               closestObject={closestObject}
               voiceState={voiceState}
+              isRunning={isRunning}
+              onStart={startDetection}
+              onStop={stopDetection}
             />
           </div>
 
           {uiMode === 'advanced' && (
             <>
-              <div style={{...styles.glassCard, flex: 1, overflow: 'hidden'}} role="region" aria-label="Detected Objects History">
+              <div style={{...styles.glassCard, minHeight: '300px'}} role="region" aria-label="Detected Objects History">
                 <ObjectList 
                   objects={detections}
                   isRunning={isRunning}
                 />
               </div>
 
-              <div style={{...styles.glassCard, flex: 1, overflow: 'hidden'}} role="region" aria-label="Spatial Radar">
+              <div style={{...styles.glassCard, minHeight: '280px'}} role="region" aria-label="Spatial Radar">
                 <MiniRadar detections={detections} />
               </div>
 
-              <div style={{...styles.glassCard, flex: 1, overflow: 'hidden'}} role="region" aria-label="Activity Timeline">
+              <div style={{...styles.glassCard, minHeight: '200px'}} role="region" aria-label="Activity Timeline">
                 <ActivityTimeline events={events} />
               </div>
 
-              <div style={{...styles.glassCard, flex: 1.5}} role="region" aria-label="System Controls">
+              <div style={{...styles.glassCard, minHeight: '300px'}} role="region" aria-label="System Controls">
                 <ControlPanel
                   config={config}
                   isRunning={isRunning}
@@ -347,6 +354,10 @@ function App() {
                   onToggleTTS={toggleTTS}
                   onConfidenceChange={updateConfidence}
                 />
+              </div>
+
+              <div style={{...styles.glassCard, minHeight: '250px'}} role="region" aria-label="Raw Stream Debug">
+                <RawDataStream data={rawPayload} />
               </div>
             </>
           )}
