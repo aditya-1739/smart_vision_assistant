@@ -4,7 +4,7 @@ This guide covers the deployment strategies for Phase 5 of the project. The syst
 
 ## 1. Local Production Deployment (Phase 5A)
 
-The local deployment builds the React frontend and serves it directly through the Python Flask backend. This eliminates the need for two separate terminals and avoids CORS issues.
+The local deployment builds the React frontend and serves it directly through the Python Flask backend. This eliminates the need for two separate terminals and avoids CORS issues. This mode defaults to **Inference Mode** (using real YOLOv8 models).
 
 ### Requirements
 - Python 3.10+
@@ -40,9 +40,12 @@ For global accessibility, the frontend is deployed to **Vercel**, and the backen
 5. Environment Variables to add in Render:
    - `ENV=production`
    - `ASYNC_MODE=eventlet`
+   - `APP_MODE=demo` (Runs the lightweight demo pipeline instead of YOLOv8)
    - `CAMERA_MODE=browser` (Cloud mode requires Browser WebRTC Camera)
    - `TTS_MODE=browser` (Cloud mode requires Browser TTS)
    - `CORS_ORIGINS=https://your-vercel-frontend-url.vercel.app`
+6. Build Command in Render: `pip install -r requirements-demo.txt`
+7. Start Command: `gunicorn --bind 0.0.0.0:$PORT --timeout 120 -k eventlet -w 1 app:app`
 
 ### Frontend (Vercel Deployment)
 1. In the Vercel Dashboard, import your GitHub repository.
@@ -61,3 +64,11 @@ For global accessibility, the frontend is deployed to **Vercel**, and the backen
 
 ### Performance Tracking
 System metrics are automatically logged to `backend/logs/app.log`. Watch for encode times over 50ms, which may require lowering `TARGET_FPS`.
+
+---
+
+## 3. Future GPU Deployment
+For future cloud deployments on GPU-enabled instances, simply switch the mode to `inference`:
+- Set `APP_MODE=inference`
+- Use the standard `requirements.txt` instead of `requirements-demo.txt`
+This will automatically re-enable the full YOLOv8 ML pipeline without any architectural changes.

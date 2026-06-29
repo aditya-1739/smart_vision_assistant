@@ -16,7 +16,7 @@ start_time = time.time()
 
 from utils.logger import get_logger
 from config.settings import settings
-from ai.pipeline import AIPipeline
+from ai.pipeline_factory import PipelineFactory
 from sessions.client_session import ClientSession
 
 logger = get_logger('app')
@@ -28,17 +28,10 @@ from flask_socketio import SocketIO, emit
 
 active_clients = {}
 
-from ai.pipeline import AIPipeline
-
-from src.detection.model_loader import load_model, warmup
-logger.info("Loading global YOLOv8 model...")
 try:
-    global_model = load_model(None, device=None, half=True, verbose=True)
-    warmup(global_model, imgsz=640, steps=3)
-    ai_pipeline = AIPipeline(global_model)
-    logger.info("Global Model ready!")
+    ai_pipeline = PipelineFactory.create(settings.APP_MODE)
 except Exception as e:
-    logger.error(f"Failed to load model: {e}")
+    logger.error(f"Failed to initialize pipeline: {e}")
 
 if settings.ENV == 'development':
     app = Flask(__name__)
@@ -68,22 +61,24 @@ def health_check():
         "model": "loaded" if 'ai_pipeline' in globals() else "unloaded",
         "tts": "ready" if settings.TTS_MODE == 'local' else "browser",
         "uptime": str(time.time() - start_time),
-        "mode": settings.CAMERA_MODE
+        "mode": settings.CAMERA_MODE,
+        "app_mode": settings.APP_MODE
     })
 
-# Import your detection (adjust path if needed)
-try:
-    from src.detection.model_loader import load_model, warmup, predict_image, get_spatial_cues
-    DETECTION_AVAILABLE = True
-except ImportError:
-    # Try alternative import paths
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+if settings.APP_MODE == 'inference':
     try:
         from src.detection.model_loader import load_model, warmup, predict_image, get_spatial_cues
         DETECTION_AVAILABLE = True
     except ImportError:
-        logger.info("[ERROR] Cannot find detection modules. Make sure src/ folder exists!")
-        DETECTION_AVAILABLE = False
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        try:
+            from src.detection.model_loader import load_model, warmup, predict_image, get_spatial_cues
+            DETECTION_AVAILABLE = True
+        except ImportError:
+            logger.info("[ERROR] Cannot find detection modules. Make sure src/ folder exists!")
+            DETECTION_AVAILABLE = False
+else:
+    DETECTION_AVAILABLE = True # Demo mode always available
 
 MIN_CONFIDENCE = settings.CONFIDENCE_THRESHOLD
 UPDATE_COOLDOWN = 2.5
@@ -454,16 +449,10 @@ class CameraPipeline:
                 frames = 0
                 last_time = time.time()
 
-    def _inference_thread(self):
-        """Phase 2: Inference Thread (Consumer)"""
-        logger.info("🚀 Loading YOLOv8 model...")
-        self.model = load_model(None, device=None, half=True, verbose=True)
-        # Phase 4: Model Warm-Up
-        warmup(self.model, imgsz=640, steps=3)
+        logger.info(f"🚀 Initializing AI Pipeline ({settings.APP_MODE})...")
         global ai_pipeline
-        ai_pipeline = AIPipeline(self.model)
         self.ai_pipeline = ai_pipeline
-        logger.info("✅ Model ready!")
+        logger.info("✅ Pipeline ready!")
         
         global tracked_objects, object_counter, last_path_clear_announcement
         tracked_objects = {}
@@ -639,7 +628,15 @@ def handle_connect(auth=None):
     sid = request.sid
     logger.info(f'[Web] Client connected: {sid}')
     active_clients[sid] = ClientSession(sid)
-    emit('connected', {'status': 'connected', 'config': {'confidence': MIN_CONFIDENCE, 'ttsEnabled': tts.enabled, 'cameraMode': settings.CAMERA_MODE}})
+    emit('connected', {
+        'status': 'connected', 
+        'config': {
+            'confidence': MIN_CONFIDENCE, 
+            'ttsEnabled': tts.enabled, 
+            'cameraMode': settings.CAMERA_MODE,
+            'appMode': settings.APP_MODE
+        }
+    })
 
 @socketio.on('disconnect')
 def handle_disconnect():

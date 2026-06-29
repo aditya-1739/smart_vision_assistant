@@ -55,6 +55,24 @@ const styles = {
     overflow: 'hidden',
     clip: 'rect(0,0,0,0)',
     border: '0',
+  },
+  demoBadge: {
+    position: 'absolute',
+    top: 'var(--spacing-md)',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'linear-gradient(135deg, rgba(255,107,107,0.9), rgba(255,61,61,0.9))',
+    color: '#fff',
+    padding: '6px 16px',
+    borderRadius: '20px',
+    fontWeight: 'bold',
+    fontSize: '0.9rem',
+    letterSpacing: '1px',
+    boxShadow: '0 4px 15px rgba(255, 61, 61, 0.4)',
+    zIndex: 100,
+    backdropFilter: 'blur(4px)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    textTransform: 'uppercase',
   }
 };
 
@@ -280,6 +298,12 @@ function App() {
   return (
     <div style={styles.app} role="main" aria-label="Smart Navigation Dashboard">
       <h1 style={styles.srOnly}>Smart Navigation Assistant for Visually Impaired Users</h1>
+
+      {config.appMode === 'demo' && (
+        <div style={styles.demoBadge} aria-label="Demo Mode Active">
+          Demo Mode: Simulated Detection Pipeline
+        </div>
+      )}
 
       <TopBar 
         isRunning={isRunning} 

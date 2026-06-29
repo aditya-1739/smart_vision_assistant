@@ -1,34 +1,30 @@
 import time
 from typing import Dict, Any, List, Tuple
-from src.detection.model_loader import predict_image
 from config.settings import settings
 from utils.logger import get_logger
+from .base_pipeline import BasePipeline
 
-logger = get_logger('ai_pipeline')
+try:
+    from src.detection.model_loader import predict_image
+except ImportError:
+    # Will fail if dependencies are missing, but inference mode shouldn't run if so
+    pass
+
+logger = get_logger('yolo_pipeline')
 
 CLASS_FILTER = ["person", "car", "bicycle", "motorcycle", "chair", 
                 "bench", "bottle", "cell phone", "remote", "dog", 
                 "cat", "bus", "truck", "umbrella", "backpack", 
                 "teddy bear", "book", "clock"]
 
-class AIPipeline:
+class YoloPipeline(BasePipeline):
     """
-    Isolated, transport-agnostic AI Pipeline.
-    Receives an image frame and returns structured JSON conforming to Protocol Version 1.0.
+    Real AI Pipeline using YOLOv8 for local development and GPU-capable deployments.
     """
     def __init__(self, model):
         self.model = model
 
     def process_frame(self, frame) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
-        """
-        Process a single frame.
-        
-        Args:
-            frame: A numpy array (image frame).
-            
-        Returns:
-            Tuple containing the Version 1.0 JSON response and the raw YOLO predictions (for legacy compatibility).
-        """
         start_t = time.time()
         
         preds, _ = predict_image(
